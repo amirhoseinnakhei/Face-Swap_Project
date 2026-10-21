@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نتیجه | Face Swap Studio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">✨</span>
+                <h1>نتیجه‌ی <span class="gradient-text">تعویض چهره</span></h1>
+            </div>
+            <p class="subtitle">عالی شد! نتیجه رو ببین و دانلود کن</p>
+        </header>
+
+        <div class="result-main">
+            <div class="result-card hero">
+                <div class="badge">نتیجه نهایی</div>
+                <img src="/{{ result }}" alt="result">
+                <div class="result-actions">
+                    <a href="/{{ result }}" download class="btn-download">
+                        <span>⬇️</span> دانلود تصویر
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="result-card small">
+                <div class="badge small-badge">منبع</div>
+                <img src="/{{ source }}" alt="source">
+            </div>
+            <div class="result-card small">
+                <div class="badge small-badge">مقصد</div>
+                <img src="/{{ target }}" alt="target">
+            </div>
+        </div>
+
+        <div class="action-area">
+            <a href="/" class="btn-submit">
+                <span class="btn-icon">🔄</span>
+                <span class="btn-text">امتحان مجدد</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Swap Studio | استودیو تعویض چهره</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- پس‌زمینه متحرک -->
+    <div class="bg-animation">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🎭</span>
+                <h1>Face Swap <span class="gradient-text">Studio</span></h1>
+            </div>
+            <p class="subtitle">چهره‌ات رو با یک کلیک روی هر عکسی بذار</p>
+        </header>
+
+        {% if error %}
+        <div class="error-box">
+            <span class="error-icon">⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/swap" enctype="multipart/form-data" id="swapForm">
+            <div class="upload-grid">
+                <!-- آپلود عکس منبع -->
+                <div class="upload-card" data-target="source">
+                    <div class="card-header">
+                        <span class="card-number">۱</span>
+                        <h3>عکس منبع</h3>
+                        <span class="card-hint">چهره‌ای که می‌خوای بذاری</span>
+                    </div>
+                    <label class="drop-zone" for="sourceInput">
+                        <input type="file" name="source" id="sourceInput" accept="image/*" hidden>
+                        <div class="drop-content">
+                            <div class="drop-icon">📸</div>
+                            <p class="drop-text">عکس رو بکش و بنداز اینجا</p>
+                            <p class="drop-subtext">یا کلیک کن</p>
+                        </div>
+                        <img class="preview-img" id="sourcePreview" alt="">
+                    </label>
+                </div>
+
+                <!-- آپلود عکس مقصد -->
+                <div class="upload-card" data-target="target">
+                    <div class="card-header">
+                        <span class="card-number">۲</span>
+                        <h3>عکس مقصد</h3>
+                        <span class="card-hint">عکسی که چهره روش می‌شینه</span>
+                    </div>
+                    <label class="drop-zone" for="targetInput">
+                        <input type="file" name="target" id="targetInput" accept="image/*" hidden>
+                        <div class="drop-content">
+                            <div class="drop-icon">🎯</div>
+                            <p class="drop-text">عکس رو بکش و بنداز اینجا</p>
+                            <p class="drop-subtext">یا کلیک کن</p>
+                        </div>
+                        <img class="preview-img" id="targetPreview" alt="">
+                    </label>
+                </div>
+            </div>
+
+            <!-- دکمه -->
+            <div class="action-area">
+                <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                    <span class="btn-icon">✨</span>
+                    <span class="btn-text">تعویض چهره</span>
+                    <div class="btn-loader" id="btnLoader"></div>
+                </button>
+            </div>
+        </form>
+
+        <footer class="footer">
+            <span>ساخته شده توسط امیرحسین نخعی</span>
+        </footer>
+    </div>
+
+    <!-- Overlay لودینگ -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-box">
+            <div class="spinner"></div>
+            <h2>در حال پردازش...</h2>
+            <p>لطفاً چند لحظه صبر کن</p>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sourceInput = document.getElementById('sourceInput');
+        const targetInput = document.getElementById('targetInput');
+        const sourcePreview = document.getElementById('sourcePreview');
+        const targetPreview = document.getElementById('targetPreview');
+        const submitBtn = document.getElementById('submitBtn');
+        const swapForm = document.getElementById('swapForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        let sourceReady = false;
+        let targetReady = false;
+
+        function handleFile(input, preview, target) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                input.parentElement.classList.add('has-image');
+
+                if (target === 'source') sourceReady = true;
+                if (target === 'target') targetReady = true;
+
+                submitBtn.disabled = !(sourceReady && targetReady);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        sourceInput.addEventListener('change', () => handleFile(sourceInput, sourcePreview, 'source'));
+        targetInput.addEventListener('change', () => handleFile(targetInput, targetPreview, 'target'));
+
+        // Drag & Drop
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const input = zone.querySelector('input[type="file"]');
+                const files = e.dataTransfer.files;
+                if (files.length) {
+                    input.files = files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+
+        // لودینگ هنگام submit
+        swapForm.addEventListener('submit', (e) => {
+            if (!submitBtn.disabled) {
+                loadingOverlay.classList.add('active');
+                submitBtn.classList.add('loading');
+            }
+        });
+    </script>
+</body>
+</html>
