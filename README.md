@@ -30,17 +30,65 @@
 - نصب پایتون، ساخت محیط مجازی، نصب کتابخانه‌ها (`opencv-python`, `numpy`, `mediapipe`)
 - تست خواندن و نمایش تصویر با OpenCV
 
+```python
+import cv2
+
+img = cv2.imread("test.jpg")
+print("Shape:", img.shape)
+print("Dtype:", img.dtype)
+
+cv2.imshow("Test", img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
 ### بخش ۲: تشخیص چهره
 
 - دانلود مدل `face_landmarker.task` از MediaPipe
 - پیاده‌سازی تابع `get_landmarks` برای استخراج ۴۶۸ نقطه‌ی چهره
 - تست روی تصاویر مختلف و نمایش نقاط روی چهره
 
+```python
+def get_landmarks(image):
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+    options = vision.FaceLandmarkerOptions(
+        base_options=base_options,
+        running_mode=vision.RunningMode.IMAGE,
+        num_faces=1
+    )
+
+    with vision.FaceLandmarker.create_from_options(options) as landmarker:
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        result = landmarker.detect(mp_image)
+
+    return np.array([(int(lm.x * w), int(lm.y * h))
+                     for lm in result.face_landmarks[0]], dtype=np.int32)
+```
+
 ### بخش ۳: اسکلت وب‌اپلیکیشن
 
 - ساخت ساختار پروژه (Flask + templates + static)
 - صفحه‌ی آپلود (`index.html`) و صفحه‌ی نتیجه (`result.html`)
 - استایل اولیه (`style.css`)
+
+```python
+from flask import Flask, render_template, request
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/swap', methods=['POST'])
+def swap():
+    source_file = request.files['source']
+    target_file = request.files['target']
+    # ذخیره و پردازش...
+    return render_template('result.html', ...)
+```
 
 ---
 
@@ -76,10 +124,10 @@ face-swap-studio/
 
 ## 📸 اسکرین‌شات
 
+> تصویر را در پوشه‌ی `screenshots/week-1/` قرار دهید.
 
-<!-- اسکرین‌شات خود را اینجا قرار دهید -->
-![اسکرین‌شات هفته اول<img width="1599" height="899" alt="Screenshot 2026-10-21 204303" src="https://github.com/user-attachments/assets/82b238c4-b155-4f13-b2d9-b258c5bc3dd0" />
-](screenshots/week-1/screenshot.png)
+![اسکرین‌شات هفته اول] 
+<img width="1599" height="899" alt="Screenshot 2026-10-21 204303" src="https://github.com/user-attachments/assets/ce5c3f1b-9753-4dcd-91da-b32151e25160" />
 
 *توضیح: صفحه‌ی اصلی وب‌اپلیکیشن — آپلود دو عکس و مشاهده‌ی نتیجه‌ی تشخیص چهره.*
 
