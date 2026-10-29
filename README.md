@@ -163,7 +163,7 @@ face-swap-studio/
 │   └── result.html
 └── screenshots/
     ├── week-1/
-    └── week-2/
+    
 ```
 
 ---
