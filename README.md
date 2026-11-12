@@ -1,11 +1,12 @@
-# 🎭 Face Swap Studio — هفته‌های اول تا سوم
+# 🎭 Face Swap Studio — هفته‌های اول تا چهارم
 
 <div align="center">
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.9-red?style=for-the-badge&logo=opencv)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10-orange?style=for-the-badge&logo=google)
-![Status](https://img.shields.io/badge/Week-1%20to%203%20%2F%2010-yellow?style=for-the-badge)
+![Flask](https://img.shields.io/badge/Flask-3.0-green?style=for-the-badge&logo=flask)
+![Status](https://img.shields.io/badge/Week-1%20to%204%20%2F%2010-yellow?style=for-the-badge)
 
 </div>
 
@@ -17,167 +18,143 @@
 
 ---
 
-## 🗓️ هفته سوم: ماسک‌سازی و ترکیب نرم با Poisson Blending
+## 🗓️ هفته چهارم: ساخت وب‌اپلیکیشن با Flask
 
-**هدف:** ساخت ماسک ناحیه‌ی صورت + ترکیب اولیه‌ی Warp با تصویر مقصد + طبیعی‌سازی مرزها با الگوریتم Poisson.
+**هدف:** تبدیل اسکریپت پایتون به یک وب‌اپلیکیشن کامل با مسیرهای آپلود، پردازش و نمایش نتیجه.
 
 ### ✅ کارهای انجام‌شده
 
-- آشنایی با **Convex Hull** و پیاده‌سازی با `cv2.convexHull`
-- ساخت ماسک ناحیه‌ی صورت با `cv2.fillConvexPoly`
-- ترکیب وزن‌دار (**Alpha Blending**) برای اولین نتیجه‌ی خام
-- مطالعه‌ی الگوریتم **Poisson Image Editing** (پرس و همکاران، ۲۰۰۳)
-- پیاده‌سازی `cv2.seamlessClone` با حالت `NORMAL_CLONE`
-- محاسبه‌ی مرکز صورت مقصد برای هدایت `seamlessClone`
-- مقایسه‌ی نتیجه‌ی قبل و بعد از Poisson Blending
+- آشنایی با **Flask** و ساختار Routing
+- ساخت فایل `app.py` با مسیرهای `/`، `/swap` و `/download`
+- مدیریت آپلود فایل با `request.files` و `secure_filename`
+- ذخیره‌ی تصاویر در پوشه‌های `static/uploads` و `static/results`
+- اعتبارسنجی فرمت فایل (jpg, jpeg, png, bmp)
+- اتصال منطق `face_swap` به وب‌سرور
+- بازگرداندن نتیجه به صفحه‌ی `result.html`
+- امکان دانلود نتیجه با `send_file`
 
 ### 🧩 نمونه کد
 
 ```python
-# ۱. ساخت ماسک ناحیه‌ی صورت با Convex Hull
+import os
+import cv2
+from flask import Flask, render_template, request, send_file
+from werkzeug.utils import secure_filename
+from face_swap import face_swap
+
+app = Flask(__name__)
+UPLOAD_FOLDER = 'static/uploads'
+RESULT_FOLDER = 'static/results'
+ALLOWED_EXT = {'jpg', 'jpeg', 'png', 'bmp'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['RESULT_FOLDER'] = RESULT_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(RESULT_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/swap', methods=['POST'])
+def swap():
+    if 'source' not in request.files or 'target' not in request.files:
+        return render_template('index.html', error="هر دو تصویر رو آپلود کن!")
+
+    source_file = request.files['source']
+    target_file = request.files['target']
+
+    if not (allowed_file(source_file.filename) and allowed_file(target_file.filename)):
+        return render_template('index.html', error="فرمت فایل پشتیبانی نمی‌شه!")
+
+    src_path = os.path.join(UPLOAD_FOLDER, 'src_' + secure_filename(source_file.filename))
+    tgt_path = os.path.join(UPLOAD_FOLDER, 'tgt_' + secure_filename(target_file.filename))
+    source_file.save(src_path)
+    target_file.save(tgt_path)
+
+    source_img = cv2.imread(src_path)
+    target_img = cv2.imread(tgt_path)
+
+    result, message = face_swap(source_img, target_img)
+    if result is None:
+        return render_template('index.html', error=message)
+
+    result_path = os.path.join(RESULT_FOLDER, 'result_' + secure_filename(target_file.filename))
+    cv2.imwrite(result_path, result)
+
+    return render_template('result.html', source=src_path, target=tgt_path, result=result_path)
+
+@app.route('/download/<path:filename>')
+def download(filename):
+    path = os.path.join(RESULT_FOLDER, filename)
+    return send_file(path, as_attachment=True)
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
+```
+
+```html
+<!-- templates/index.html — نسخه‌ی اولیه -->
+<form method="POST" action="/swap" enctype="multipart/form-data">
+    <input type="file" name="source" accept="image/*" required>
+    <input type="file" name="target" accept="image/*" required>
+    <button type="submit">تعویض چهره</button>
+</form>
+```
+
+### 🧠 تکنیک‌ها
+
+| تکنیک | کاربرد |
+|-------|--------|
+| Flask Routing | مدیریت مسیرها |
+| `secure_filename` | امن‌سازی نام فایل |
+| File Upload | دریافت تصاویر از کاربر |
+| `send_file` | دانلود نتیجه |
+
+---
+
+## 🗓️ هفته سوم: ماسک و Poisson Blending (خلاصه)
+
+- ساخت ماسک با **Convex Hull** (`cv2.convexHull` + `fillConvexPoly`)
+- ترکیب اولیه با **Alpha Blending**
+- طبیعی‌سازی مرزها با **Poisson Blending** (`cv2.seamlessClone`)
+- محاسبه‌ی مرکز صورت برای هدایت `seamlessClone`
+
+```python
 mask = np.zeros(target_img.shape, dtype=np.uint8)
 cv2.fillConvexPoly(mask, cv2.convexHull(tgt_oval), (255, 255, 255))
-
-# ۲. ترکیب اولیه (قبل از Poisson) — برای مقایسه
-result_raw = cv2.addWeighted(img2_new, 0.7, target_img, 0.3, 0)
-
-# ۳. محاسبه‌ی مرکز صورت مقصد
-rect = cv2.boundingRect(np.float32([tgt_oval]))
-rect_x, rect_y, rect_w, rect_h = rect
-center = (rect_x + rect_w // 2, rect_y + rect_h // 2)
-
-# ۴. ترکیب نرم با Poisson Blending
 result = cv2.seamlessClone(img2_new, target_img, mask, center, cv2.NORMAL_CLONE)
 ```
 
-```python
-# تابع کامل face_swap — نسخه‌ی نهایی هفته سوم
-def face_swap(source_img, target_img):
-    source_img = np.ascontiguousarray(source_img.astype(np.uint8))
-    target_img = np.ascontiguousarray(target_img.astype(np.uint8))
+---
 
-    source_landmarks = get_landmarks(source_img)
-    target_landmarks = get_landmarks(target_img)
+## 🗓️ هفته دوم: Delaunay و Warp (خلاصه)
 
-    if source_landmarks is None or target_landmarks is None:
-        return None, "چهره پیدا نشد!"
-
-    # هم‌اندازه کردن
-    h, w = target_img.shape[:2]
-    source_img = cv2.resize(source_img, (w, h))
-    source_landmarks = get_landmarks(source_img)
-
-    src_oval = get_face_oval_points(source_landmarks)
-    tgt_oval = get_face_oval_points(target_landmarks)
-
-    # مثلث‌بندی Delaunay
-    rect = cv2.boundingRect(np.float32([tgt_oval]))
-    triangles = calculate_delaunay_triangles(rect, tgt_oval)
-
-    # Warp مثلث‌ها
-    img2_new = np.copy(target_img)
-    for tri in triangles:
-        t1 = [src_oval[tri[0]], src_oval[tri[1]], src_oval[tri[2]]]
-        t2 = [tgt_oval[tri[0]], tgt_oval[tri[1]], tgt_oval[tri[2]]]
-        warp_triangle(source_img, img2_new, t1, t2)
-
-    # ماسک و ترکیب نهایی
-    mask = np.zeros(target_img.shape, dtype=np.uint8)
-    cv2.fillConvexPoly(mask, cv2.convexHull(tgt_oval), (255, 255, 255))
-
-    rect_x, rect_y, rect_w, rect_h = rect
-    center = (rect_x + rect_w // 2, rect_y + rect_h // 2)
-
-    result = cv2.seamlessClone(img2_new, target_img, mask, center, cv2.NORMAL_CLONE)
-    return result, "موفق"
-```
-
-### 🧠 الگوریتم‌ها
-
-| الگوریتم | کاربرد |
-|----------|--------|
-| Convex Hull | ساخت ماسک ناحیه‌ی صورت |
-| Scan-line Fill | پر کردن ماسک با `fillConvexPoly` |
-| Alpha Blending | ترکیب اولیه‌ی Warp با مقصد |
-| Poisson Blending | حذف مرزها و هماهنگ‌سازی رنگ |
-
-### 🔬 مقایسه‌ی قبل و بعد
-
-| مرحله | نتیجه |
-|--------|--------|
-| بدون Poisson (Alpha Blend) | مرزهای صورت مشخص، رنگ ناهماهنگ |
-| با Poisson (Seamless Clone) | مرزها محو، رنگ و نور طبیعی |
-
-
-## 🗓️ هفته دوم: مثلث‌بندی Delaunay و Warp مثلث‌ها (خلاصه)
-
-**هدف:** تقسیم صورت به مثلث‌های متناظر + Warp هر مثلث با تبدیل Affine.
-
-### ✅ کارهای کلیدی
-
-- پیاده‌سازی **Delaunay Triangulation** با `cv2.Subdiv2D`
-- انتخاب نقاط دور صورت (`FACE_OVAL`) و حذف تکراری‌ها با `np.unique`
-- پیاده‌سازی **تبدیل Affine** با `cv2.getAffineTransform` + `cv2.warpAffine`
-- Warp کردن هر مثلث با `warp_triangle`
-- درون‌یابی دوخطی (`cv2.INTER_LINEAR`) برای کیفیت بهتر
-
-### 🧩 نمونه کد
+- **Delaunay Triangulation** با `cv2.Subdiv2D`
+- **Affine Transform** با `cv2.getAffineTransform` + `cv2.warpAffine`
+- Warp مثلث‌ها با `warp_triangle` و درون‌یابی دوخطی
 
 ```python
 def calculate_delaunay_triangles(rect, points):
     subdiv = cv2.Subdiv2D(rect)
     for p in points:
         subdiv.insert((float(p[0]), float(p[1])))
-    triangle_list = subdiv.getTriangleList()
-    delaunay_tri = []
-    for t in triangle_list:
-        pt1 = (int(t[0]), int(t[1]))
-        pt2 = (int(t[2]), int(t[3]))
-        pt3 = (int(t[4]), int(t[5]))
-        if rect_contains(rect, pt1) and rect_contains(rect, pt2) and rect_contains(rect, pt3):
-            indices = []
-            for pt in [pt1, pt2, pt3]:
-                for i, p in enumerate(points):
-                    if abs(p[0] - pt[0]) < 2 and abs(p[1] - pt[1]) < 2:
-                        indices.append(i)
-                        break
-            if len(indices) == 3 and len(set(indices)) == 3:
-                delaunay_tri.append(tuple(indices))
-    return delaunay_tri
-
-def apply_affine_transform(src, src_tri, dst_tri, size):
-    warp_mat = cv2.getAffineTransform(np.float32(src_tri), np.float32(dst_tri))
-    return cv2.warpAffine(src, warp_mat, (size[0], size[1]),
-                          flags=cv2.INTER_LINEAR,
-                          borderMode=cv2.BORDER_REFLECT_101)
+    return subdiv.getTriangleList()
 ```
-
-### 🧠 الگوریتم‌ها
-
-| الگوریتم | کاربرد |
-|----------|--------|
-| Delaunay Triangulation | تقسیم صورت به مثلث |
-| Affine Transform | Map کردن مثلث‌ها |
-| Bilinear Interpolation | درون‌یابی پیکسل‌ها |
-| Convex Hull | ساخت ماسک مثلث |
-| Weighted Blending | ترکیب مثلث‌ها |
-
-
 
 ---
 
-## 🗓️ هفته اول: پایه‌گذاری و تشخیص چهره (خلاصه)
+## 🗓️ هفته اول: تشخیص چهره (خلاصه)
 
-**هدف:** آماده‌سازی محیط + تشخیص چهره و استخراج ۴۶۸ نقطه + اسکلت اولیه‌ی وب‌اپ.
-
-### ✅ کارهای کلیدی
-
-- نصب پایتون، محیط مجازی و کتابخانه‌ها (`opencv-python`, `numpy`, `mediapipe`)
-- دانلود مدل `face_landmarker.task` از MediaPipe
+- نصب محیط + کتابخانه‌ها
+- دانلود مدل `face_landmarker.task`
 - پیاده‌سازی `get_landmarks` برای استخراج ۴۶۸ نقطه
-- ساخت اسکلت اولیه‌ی Flask + صفحات `index.html` و `result.html`
-
-### 🧩 نمونه کد
+- اسکلت اولیه‌ی Flask
 
 ```python
 def get_landmarks(image):
@@ -195,14 +172,6 @@ def get_landmarks(image):
                      for lm in result.face_landmarks[0]], dtype=np.int32)
 ```
 
-### 🧠 الگوریتم‌ها
-
-| الگوریتم | کاربرد |
-|----------|--------|
-| BlazeFace | تشخیص چهره |
-| Regression Tree | استخراج ۴۶۸ نقطه |
-| Color Space Conversion | تبدیل BGR ↔ RGB |
-
 ### 📸 اسکرین‌شات
 
 <img width="1599" height="899" alt="Screenshot 2026-10-21 204303" src="https://github.com/user-attachments/assets/ce5c3f1b-9753-4dcd-91da-b32151e25160" />
@@ -211,12 +180,12 @@ def get_landmarks(image):
 
 ---
 
-## 📁 ساختار پروژه (پایان هفته سوم)
+## 📁 ساختار پروژه (پایان هفته چهارم)
 
 ```
 face-swap-studio/
 ├── app.py                      # وب‌سرور Flask
-├── face_swap.py                # منطق کامل پردازش تصویر
+├── face_swap.py                # منطق پردازش تصویر
 ├── face_landmarker.task        # مدل MediaPipe
 ├── static/
 │   ├── style.css
@@ -226,41 +195,37 @@ face-swap-studio/
 │   ├── index.html
 │   └── result.html
 └── screenshots/
-    ├── week-1/
-    ├── week-2/
-    └── week-3/
+    └── week-1/
 ```
 
 ---
 
-## 📊 وضعیت سه هفته
+## 📊 وضعیت چهار هفته
 
 | بخش | وضعیت |
 |-----|-------|
 | آماده‌سازی محیط | ✅ |
 | تشخیص چهره و استخراج ۴۶۸ نقطه | ✅ |
 | اسکلت وب‌اپ | ✅ |
-| مثلث‌بندی Delaunay | ✅ |
-| تبدیل Affine و Warp مثلث‌ها | ✅ |
-| ماسک با Convex Hull | ✅ |
-| ترکیب نرم با Poisson Blending | ✅ |
+| مثلث‌بندی Delaunay و Warp | ✅ |
+| ماسک و Poisson Blending | ✅ |
+| وب‌اپلیکیشن Flask | ✅ |
 
 ---
 
 ## 🎯 خروجی نهایی
 
-- ✅ چهره تشخیص داده می‌شود و ۴۶۸ نقطه استخراج می‌شود
-- ✅ صورت به مثلث‌های متناظر تقسیم و Warp می‌شود
-- ✅ ماسک ناحیه‌ی صورت ساخته می‌شود
-- ✅ نتیجه‌ی Face Swap حالا طبیعی و بدون مرز مشخص است
-- ✅ کاربر می‌تواند از طریق وب‌اپ دو عکس آپلود کند و نتیجه‌ی نهایی را ببیند
+- ✅ کاربر می‌تواند از طریق مرورگر دو عکس آپلود کند
+- ✅ پردازش Face Swap روی سرور انجام می‌شود
+- ✅ نتیجه در صفحه‌ی `result.html` نمایش داده می‌شود
+- ✅ امکان دانلود نتیجه وجود دارد
 
-**قدم بعدی:** هفته چهارم — ساخت وب‌اپلیکیشن با Flask 🚀
+**قدم بعدی:** هفته پنجم — طراحی رابط کاربری مدرن 🚀
 
 ---
 
 <div align="center">
 
-**هفته ۱ تا ۳ از ۱۰ — ✅ تکمیل شده**
+**هفته ۱ تا ۴ از ۱۰ — ✅ تکمیل شده**
 
 </div>
