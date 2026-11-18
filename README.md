@@ -1,4 +1,4 @@
-# 🎭 Face Swap Studio — هفته‌های اول تا چهارم
+# 🎭 Face Swap Studio — هفته‌های اول تا پنجم
 
 <div align="center">
 
@@ -6,7 +6,7 @@
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.9-red?style=for-the-badge&logo=opencv)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10-orange?style=for-the-badge&logo=google)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green?style=for-the-badge&logo=flask)
-![Status](https://img.shields.io/badge/Week-1%20to%204%20%2F%2010-yellow?style=for-the-badge)
+![Status](https://img.shields.io/badge/Week-1%20to%205%20%2F%2010-yellow?style=for-the-badge)
 
 </div>
 
@@ -18,112 +18,105 @@
 
 ---
 
-## 🗓️ هفته چهارم: ساخت وب‌اپلیکیشن با Flask
+## 🗓️ هفته پنجم: طراحی رابط کاربری مدرن
 
-**هدف:** تبدیل اسکریپت پایتون به یک وب‌اپلیکیشن کامل با مسیرهای آپلود، پردازش و نمایش نتیجه.
+**هدف:** تبدیل صفحات ساده‌ی HTML به یک رابط کاربری حرفه‌ای با Glassmorphism، انیمیشن و Drag & Drop.
 
 ### ✅ کارهای انجام‌شده
 
-- آشنایی با **Flask** و ساختار Routing
-- ساخت فایل `app.py` با مسیرهای `/`، `/swap` و `/download`
-- مدیریت آپلود فایل با `request.files` و `secure_filename`
-- ذخیره‌ی تصاویر در پوشه‌های `static/uploads` و `static/results`
-- اعتبارسنجی فرمت فایل (jpg, jpeg, png, bmp)
-- اتصال منطق `face_swap` به وب‌سرور
-- بازگرداندن نتیجه به صفحه‌ی `result.html`
-- امکان دانلود نتیجه با `send_file`
+- طراحی مجدد `index.html` و `result.html`
+- پس‌زمینه‌ی متحرک با **Orbهای گرادیانتی** و انیمیشن `float`
+- افکت **Glassmorphism** روی کارت اصلی (blur + شفافیت)
+- دکمه‌ی گرادیانت متحرک با انیمیشن `gradientShift`
+- **Drag & Drop** برای آپلود تصاویر
+- **پیش‌نمایش زنده** بعد از انتخاب فایل
+- **دکمه‌ی هوشمند** (غیرفعال تا آپلود هر دو عکس)
+- **لودینگ Overlay** با اسپینر و نوار پیشرفت
+- طراحی **ریسپانسیو** برای موبایل
+- فونت فارسی **Vazirmatn** از Google Fonts
 
 ### 🧩 نمونه کد
 
-```python
-import os
-import cv2
-from flask import Flask, render_template, request, send_file
-from werkzeug.utils import secure_filename
-from face_swap import face_swap
+```css
+/* پس‌زمینه با Orbهای متحرک */
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    animation: float 20s infinite ease-in-out;
+}
 
-app = Flask(__name__)
-UPLOAD_FOLDER = 'static/uploads'
-RESULT_FOLDER = 'static/results'
-ALLOWED_EXT = {'jpg', 'jpeg', 'png', 'bmp'}
+@keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(60px, -80px) scale(1.1); }
+    66% { transform: translate(-40px, 60px) scale(0.9); }
+}
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['RESULT_FOLDER'] = RESULT_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+/* Glassmorphism */
+.container {
+    background: rgba(20, 20, 40, 0.55);
+    backdrop-filter: blur(24px);
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULT_FOLDER, exist_ok=True)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/swap', methods=['POST'])
-def swap():
-    if 'source' not in request.files or 'target' not in request.files:
-        return render_template('index.html', error="هر دو تصویر رو آپلود کن!")
-
-    source_file = request.files['source']
-    target_file = request.files['target']
-
-    if not (allowed_file(source_file.filename) and allowed_file(target_file.filename)):
-        return render_template('index.html', error="فرمت فایل پشتیبانی نمی‌شه!")
-
-    src_path = os.path.join(UPLOAD_FOLDER, 'src_' + secure_filename(source_file.filename))
-    tgt_path = os.path.join(UPLOAD_FOLDER, 'tgt_' + secure_filename(target_file.filename))
-    source_file.save(src_path)
-    target_file.save(tgt_path)
-
-    source_img = cv2.imread(src_path)
-    target_img = cv2.imread(tgt_path)
-
-    result, message = face_swap(source_img, target_img)
-    if result is None:
-        return render_template('index.html', error=message)
-
-    result_path = os.path.join(RESULT_FOLDER, 'result_' + secure_filename(target_file.filename))
-    cv2.imwrite(result_path, result)
-
-    return render_template('result.html', source=src_path, target=tgt_path, result=result_path)
-
-@app.route('/download/<path:filename>')
-def download(filename):
-    path = os.path.join(RESULT_FOLDER, filename)
-    return send_file(path, as_attachment=True)
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+/* دکمه‌ی گرادیانت متحرک */
+.btn-submit {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+    border-radius: 60px;
+}
 ```
 
-```html
-<!-- templates/index.html — نسخه‌ی اولیه -->
-<form method="POST" action="/swap" enctype="multipart/form-data">
-    <input type="file" name="source" accept="image/*" required>
-    <input type="file" name="target" accept="image/*" required>
-    <button type="submit">تعویض چهره</button>
-</form>
+```javascript
+// Drag & Drop + پیش‌نمایش زنده
+sourceInput.addEventListener('change', () => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        sourcePreview.src = e.target.result;
+        sourcePreview.style.display = 'block';
+        submitBtn.disabled = !(sourceReady && targetReady);
+    };
+    reader.readAsDataURL(sourceInput.files[0]);
+});
 ```
 
 ### 🧠 تکنیک‌ها
 
 | تکنیک | کاربرد |
 |-------|--------|
-| Flask Routing | مدیریت مسیرها |
-| `secure_filename` | امن‌سازی نام فایل |
-| File Upload | دریافت تصاویر از کاربر |
-| `send_file` | دانلود نتیجه |
+| CSS Glassmorphism | ظاهر شیشه‌ای مدرن |
+| CSS Animation | Orbها و گرادیانت متحرک |
+| JavaScript FileReader | پیش‌نمایش زنده |
+| Drag & Drop API | آپلود راحت‌تر |
 
 ---
 
-## 🗓️ هفته سوم: ماسک و Poisson Blending (خلاصه)
+## 🗓️ هفته چهارم: وب‌اپ Flask (خلاصه)
 
-- ساخت ماسک با **Convex Hull** (`cv2.convexHull` + `fillConvexPoly`)
-- ترکیب اولیه با **Alpha Blending**
-- طبیعی‌سازی مرزها با **Poisson Blending** (`cv2.seamlessClone`)
-- محاسبه‌ی مرکز صورت برای هدایت `seamlessClone`
+- ساخت `app.py` با مسیرهای `/`، `/swap`، `/download`
+- مدیریت آپلود با `request.files` و `secure_filename`
+- اعتبارسنجی فرمت فایل
+- ذخیره در `static/uploads` و `static/results`
+
+```python
+@app.route('/swap', methods=['POST'])
+def swap():
+    source_file = request.files['source']
+    target_file = request.files['target']
+    src_path = os.path.join(UPLOAD_FOLDER, 'src_' + secure_filename(source_file.filename))
+    source_file.save(src_path)
+    result, message = face_swap(source_img, target_img)
+    return render_template('result.html', ...)
+```
+
+---
+
+## 🗓️ هفته سوم: Poisson Blending (خلاصه)
+
+- ساخت ماسک با **Convex Hull**
+- ترکیب نرم با **Poisson Blending** (`cv2.seamlessClone`)
 
 ```python
 mask = np.zeros(target_img.shape, dtype=np.uint8)
@@ -136,8 +129,7 @@ result = cv2.seamlessClone(img2_new, target_img, mask, center, cv2.NORMAL_CLONE)
 ## 🗓️ هفته دوم: Delaunay و Warp (خلاصه)
 
 - **Delaunay Triangulation** با `cv2.Subdiv2D`
-- **Affine Transform** با `cv2.getAffineTransform` + `cv2.warpAffine`
-- Warp مثلث‌ها با `warp_triangle` و درون‌یابی دوخطی
+- **Affine Transform** برای Map مثلث‌ها
 
 ```python
 def calculate_delaunay_triangles(rect, points):
@@ -151,10 +143,8 @@ def calculate_delaunay_triangles(rect, points):
 
 ## 🗓️ هفته اول: تشخیص چهره (خلاصه)
 
-- نصب محیط + کتابخانه‌ها
-- دانلود مدل `face_landmarker.task`
-- پیاده‌سازی `get_landmarks` برای استخراج ۴۶۸ نقطه
-- اسکلت اولیه‌ی Flask
+- نصب محیط + دانلود مدل `face_landmarker.task`
+- تابع `get_landmarks` برای استخراج ۴۶۸ نقطه
 
 ```python
 def get_landmarks(image):
@@ -180,7 +170,7 @@ def get_landmarks(image):
 
 ---
 
-## 📁 ساختار پروژه (پایان هفته چهارم)
+## 📁 ساختار پروژه (پایان هفته پنجم)
 
 ```
 face-swap-studio/
@@ -200,32 +190,32 @@ face-swap-studio/
 
 ---
 
-## 📊 وضعیت چهار هفته
+## 📊 وضعیت پنج هفته
 
 | بخش | وضعیت |
 |-----|-------|
-| آماده‌سازی محیط | ✅ |
-| تشخیص چهره و استخراج ۴۶۸ نقطه | ✅ |
-| اسکلت وب‌اپ | ✅ |
-| مثلث‌بندی Delaunay و Warp | ✅ |
-| ماسک و Poisson Blending | ✅ |
-| وب‌اپلیکیشن Flask | ✅ |
+| تشخیص چهره | ✅ |
+| مثلث‌بندی و Warp | ✅ |
+| ترکیب نرم Poisson | ✅ |
+| وب‌اپ Flask | ✅ |
+| رابط کاربری مدرن | ✅ |
 
 ---
 
 ## 🎯 خروجی نهایی
 
-- ✅ کاربر می‌تواند از طریق مرورگر دو عکس آپلود کند
-- ✅ پردازش Face Swap روی سرور انجام می‌شود
-- ✅ نتیجه در صفحه‌ی `result.html` نمایش داده می‌شود
-- ✅ امکان دانلود نتیجه وجود دارد
+- ✅ طراحی حرفه‌ای و مدرن
+- ✅ Drag & Drop برای آپلود
+- ✅ پیش‌نمایش زنده‌ی تصاویر
+- ✅ لودینگ زیبا هنگام پردازش
+- ✅ ریسپانسیو برای موبایل
 
-**قدم بعدی:** هفته پنجم — طراحی رابط کاربری مدرن 🚀
+**قدم بعدی:** هفته ششم — مدیریت خطا و اعتبارسنجی ورودی 🚀
 
 ---
 
 <div align="center">
 
-**هفته ۱ تا ۴ از ۱۰ — ✅ تکمیل شده**
+**هفته ۱ تا ۵ از ۱۰ — ✅ تکمیل شده**
 
 </div>
